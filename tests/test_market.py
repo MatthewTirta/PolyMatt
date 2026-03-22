@@ -2,6 +2,7 @@
 from unittest.mock import patch, MagicMock
 import pytest
 from polymatt.market.client import _with_retry, fetch_markets, fetch_orderbook
+from polymatt.market.discover import is_btc_market
 
 
 @patch("time.sleep")
@@ -57,3 +58,15 @@ def test_fetch_orderbook_calls_get_order_book():
         result = fetch_orderbook(mock_client, "test-condition-id")
     assert result == {"bids": [], "asks": []}
     mock_client.get_order_book.assert_called_once_with("test-condition-id")
+
+
+def test_btc_market_detected_by_keyword():
+    assert is_btc_market("Will BTC close above $70k?") is True
+    assert is_btc_market("Will Bitcoin reach $100k by end of year?") is True
+    assert is_btc_market("Will ETH flip BTC market cap?") is True  # contains btc
+
+
+def test_non_btc_market_rejected():
+    assert is_btc_market("Will ETH reach $5k?") is False
+    assert is_btc_market("Will the Fed cut rates in March?") is False
+    assert is_btc_market("Will Solana flip Ethereum?") is False
