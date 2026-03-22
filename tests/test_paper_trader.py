@@ -37,3 +37,12 @@ def test_breakeven_trade_not_counted_as_loss():
     assert p.wins == 0
     assert p.losses == 0
     assert p.total_pnl == 0.0
+
+
+from polymatt.paper_trader.trader import PaperTrader
+
+def test_session_summary_has_required_fields():
+    trader = PaperTrader(condition_id="test-id", learner=None)
+    summary = trader.close_session()
+    for field in ["wins", "losses", "win_rate_pct", "total_pnl", "max_drawdown"]:
+        assert field in summary, f"Missing field: {field}"
