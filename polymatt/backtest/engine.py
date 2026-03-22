@@ -8,10 +8,11 @@ Requires at least 7 days of stored data from Phase 1.
 """
 import random
 import logging
+import statistics
 from datetime import datetime, timedelta
 from typing import Optional
 from polymatt import config
-from polymatt.data.storage import get_trades_since, get_orderbooks_since
+from polymatt.data.storage import get_trades_since, get_orderbooks_since, get_btc_prices_since
 from polymatt.market.discover import get_btc_markets
 from polymatt.strategy.baseline import StrategyParams, evaluate_signal, validate_lag_hypothesis
 from polymatt.strategy.learner import Learner
@@ -39,7 +40,6 @@ def run_backtest(
     print(f"[PolyMatt] Starting {num_runs}-run backtest ({session_duration_min}min each)...")
 
     # Load stored data
-    from polymatt.data.storage import get_btc_prices_since
     markets = get_btc_markets()
     if not markets:
         return {"error": "No BTC markets found"}
@@ -103,7 +103,6 @@ def run_backtest(
     # NOTE: this is NOT a time-series Sharpe — it measures how consistently
     # the strategy produces positive PnL across runs, not risk-adjusted return.
     # A value > 0.5 is good; > 1.0 is strong. Not comparable to published Sharpe ratios.
-    import statistics
     pnl_std = statistics.stdev(pnls) if len(pnls) > 1 else 0
     sharpe = round(avg_pnl / pnl_std, 2) if pnl_std > 0 else 0
 
