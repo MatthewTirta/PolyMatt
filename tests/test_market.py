@@ -51,13 +51,18 @@ def test_fetch_markets_calls_get_markets():
 
 
 def test_fetch_orderbook_calls_get_order_book():
-    """fetch_orderbook should call client.get_order_book(condition_id) via _with_retry."""
-    mock_client = MagicMock()
-    mock_client.get_order_book.return_value = {"bids": [], "asks": []}
-    with patch("time.sleep"):
-        result = fetch_orderbook(mock_client, "test-condition-id")
+    """fetch_orderbook should GET the CLOB /book endpoint with the token_id."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"bids": [], "asks": []}
+    mock_response.raise_for_status.return_value = None
+
+    mock_client = MagicMock()  # client arg is accepted but not used by the HTTP path
+    with patch("polymatt.market.client.requests.get", return_value=mock_response) as mock_get:
+        with patch("time.sleep"):
+            result = fetch_orderbook(mock_client, "99999token")
     assert result == {"bids": [], "asks": []}
-    mock_client.get_order_book.assert_called_once_with("test-condition-id")
+    called_url = mock_get.call_args[0][0]
+    assert "99999token" in called_url
 
 
 def test_btc_market_detected_by_keyword():

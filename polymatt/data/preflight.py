@@ -41,7 +41,9 @@ def run_preflight() -> int:
     if markets:
         try:
             client = get_client()
-            ob_raw = fetch_orderbook(client, markets[0].condition_id)
+            # Use the first token_id for the Up/Yes side orderbook
+            token_id = markets[0].token_ids[0] if markets[0].token_ids else markets[0].condition_id
+            ob_raw = fetch_orderbook(client, token_id)
             bids = ob_raw.get("bids", [])
             asks = ob_raw.get("asks", [])
             if bids and asks:

@@ -7,19 +7,21 @@ Trade holds one completed trade, etc.
 """
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 
 @dataclass
 class Market:
     """One Polymarket prediction market (e.g. 'Will BTC close above $70k?')."""
-    condition_id: str       # unique ID used in all API calls
+    condition_id: str       # unique market ID (from Gamma API conditionId)
     question: str           # the market question in plain English
-    yes_price: float        # current price of a YES share (0.0 = 0%, 1.0 = 100%)
-    no_price: float         # current price of a NO share
+    yes_price: float        # current price of a YES/Up share (0.0 = 0%, 1.0 = 100%)
+    no_price: float         # current price of a NO/Down share
     volume_usd: float       # total USD traded in this market
     end_date: Optional[str] # when the market resolves (ISO date string)
     active: bool = True     # False if the market is closed
+    # Token IDs used by the CLOB orderbook endpoint (one per outcome)
+    token_ids: list = field(default_factory=list)
 
 
 @dataclass
