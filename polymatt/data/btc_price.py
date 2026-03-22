@@ -34,4 +34,6 @@ async def start_collection(stop_event: asyncio.Event):
         if price > 0:
             save_btc_price(datetime.utcnow(), price)
             logger.debug("BTC price saved: $%.2f", price)
+        else:
+            logger.warning("BTC price fetch returned 0 — skipping save this cycle")
         await asyncio.sleep(POLL_INTERVAL_SECONDS)
