@@ -10,7 +10,7 @@ starting the 1,000-run backtest.
 """
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import ClassVar, Optional
 from polymatt.market.models import Trade, Orderbook, Signal
 
 
@@ -23,8 +23,8 @@ class StrategyParams:
     min_liquidity_usd: float = 400    # min liquidity at best bid/ask ($)
     cooldown_after_losses_min: int = 10
 
-    # Bounds — learner cannot go outside these
-    BOUNDS = {
+    # Bounds — learner cannot go outside these (ClassVar = not an instance field)
+    BOUNDS: ClassVar[dict] = {
         "momentum_window_min":    (1, 30),
         "entry_confidence_pct":   (40, 90),
         "spread_threshold_pct":   (0.5, 10.0),
@@ -44,6 +44,9 @@ def evaluate_signal(
     Evaluate whether to enter a trade right now.
     Returns a Signal if conditions are met, or None if no trade.
     """
+    # recent_trades is reserved for a future feature (trade momentum scoring)
+    # and is not used in this baseline version
+
     # Don't trade if spread is too wide
     spread = orderbook.spread_pct() or 999
     if spread > params.spread_threshold_pct:
@@ -52,8 +55,8 @@ def evaluate_signal(
     # Don't trade if liquidity is too low
     best_bid = orderbook.best_bid() or 0
     best_ask = orderbook.best_ask() or 0
-    bid_liq = sum(b.size for b in orderbook.bids[:3]) * best_bid
-    ask_liq = sum(a.size for a in orderbook.asks[:3]) * best_ask
+    bid_liq = sum(b.size * b.price for b in orderbook.bids[:3])
+    ask_liq = sum(a.size * a.price for a in orderbook.asks[:3])
     if min(bid_liq, ask_liq) < params.min_liquidity_usd:
         return None
 
@@ -63,7 +66,7 @@ def evaluate_signal(
         return None
 
     # Confidence is proportional to how strong the BTC move is
-    # 1.5% move = 60% confidence; 3% move = 80%; 5%+ = 90%
+    # 1.5% move = 60% confidence; 3% move = 75%; 5%+ = 90%
     confidence = min(60 + (abs(btc_change_pct) - 1.5) * 10, 90)
 
     if confidence < params.entry_confidence_pct:
