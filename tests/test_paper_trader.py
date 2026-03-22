@@ -1,5 +1,4 @@
 # tests/test_paper_trader.py
-from datetime import datetime
 from polymatt.paper_trader.portfolio import Portfolio
 
 
@@ -30,3 +29,11 @@ def test_win_rate_calculation():
     p.record_closed_trade(pnl=10.0)
     p.record_closed_trade(pnl=-5.0)
     assert abs(p.win_rate() - 66.67) < 0.1
+
+
+def test_breakeven_trade_not_counted_as_loss():
+    p = Portfolio(starting_bankroll=1000.0)
+    p.record_closed_trade(pnl=0.0)
+    assert p.wins == 0
+    assert p.losses == 0
+    assert p.total_pnl == 0.0

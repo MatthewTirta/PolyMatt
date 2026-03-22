@@ -12,8 +12,8 @@ class Portfolio:
         self.wins = 0
         self.losses = 0
         self.total_pnl = 0.0
-        self.max_drawdown = 0.0          # biggest single-session loss seen
-        self.daily_loss = 0.0            # total loss today (resets each session)
+        self.max_drawdown = 0.0          # biggest peak-to-trough decline seen across trades
+        self.daily_loss = 0.0            # total loss this session; call reset_daily_loss() at the start of each new day
         self._peak_bankroll = starting_bankroll
 
     def record_closed_trade(self, pnl: float):
@@ -24,11 +24,15 @@ class Portfolio:
         if pnl > 0:
             self.wins += 1
             self._peak_bankroll = max(self._peak_bankroll, self.current_bankroll)
-        else:
+        elif pnl < 0:
             self.losses += 1
             self.daily_loss += abs(pnl)
             drawdown = self._peak_bankroll - self.current_bankroll
             self.max_drawdown = max(self.max_drawdown, drawdown)
+
+    def reset_daily_loss(self):
+        """Call this at the start of each new trading day to reset the daily loss counter."""
+        self.daily_loss = 0.0
 
     def win_rate(self) -> float:
         """Win rate as a percentage (0–100). Returns 0 if no trades."""
