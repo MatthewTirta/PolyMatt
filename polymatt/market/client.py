@@ -55,8 +55,12 @@ def get_client() -> ClobClient:
 
 
 def fetch_markets(client: ClobClient) -> list:
-    """Fetch all active markets from Polymarket."""
-    return _with_retry(client.get_markets)
+    """Fetch all active markets from Polymarket. Returns the list from the 'data' key."""
+    result = _with_retry(client.get_markets)
+    # API returns {"data": [...], "next_cursor": ..., "count": ...}
+    if isinstance(result, dict):
+        return result.get("data", [])
+    return result or []
 
 
 def fetch_orderbook(client: ClobClient, condition_id: str) -> dict:

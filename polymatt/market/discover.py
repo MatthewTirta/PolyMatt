@@ -32,11 +32,15 @@ def get_btc_markets() -> list:
         question = m.get("question", "")
         if not is_btc_market(question):
             continue
+        # Prices live in the tokens list: [{outcome: "Yes", price: 0.6}, {outcome: "No", price: 0.4}]
+        tokens = m.get("tokens", [])
+        yes_price = next((float(t["price"]) for t in tokens if t.get("outcome") == "Yes"), 0.0)
+        no_price = next((float(t["price"]) for t in tokens if t.get("outcome") == "No"), 0.0)
         btc.append(Market(
             condition_id=m.get("condition_id", ""),
             question=question,
-            yes_price=float(m.get("best_ask") or 0),
-            no_price=float(m.get("best_bid") or 0),
+            yes_price=yes_price,
+            no_price=no_price,
             volume_usd=float(m.get("volume") or 0),
             end_date=m.get("end_date_iso"),
             active=m.get("active", False),
