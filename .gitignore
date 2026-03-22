@@ -4,6 +4,7 @@ __pycache__/
 *.pyo
 venv/
 .venv/
+# Anchored with "/" so that polymatt/data/ (source code) is NOT ignored — only root-level data/
 /logs/
 /data/
 *.db
