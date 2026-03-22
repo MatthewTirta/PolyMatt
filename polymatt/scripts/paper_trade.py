@@ -11,7 +11,7 @@ import argparse
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from polymatt.config import check_kill_switch
 from polymatt.data.storage import init_db
 from polymatt.data.preflight import run_preflight
@@ -98,7 +98,7 @@ def main():
         stop_event.set()
 
     summary = trader.close_session()
-    history.append({"session": session_num, "timestamp": datetime.utcnow().isoformat(),
+    history.append({"session": session_num, "timestamp": datetime.now(timezone.utc).isoformat(),
                     **summary})
     save_session_history(history)
 

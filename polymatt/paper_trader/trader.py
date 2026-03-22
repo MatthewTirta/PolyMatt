@@ -6,7 +6,7 @@ Never touches real money. All trades are stored in SQLite.
 """
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from polymatt import config
 from polymatt.market.models import Orderbook, PaperTrade
@@ -14,7 +14,7 @@ from polymatt.strategy.baseline import StrategyParams, evaluate_signal
 from polymatt.strategy.learner import Learner
 from polymatt.paper_trader.portfolio import Portfolio
 from polymatt.paper_trader.risk import make_risk_checker_from_config
-from polymatt.data.storage import save_paper_trade, get_trade_count_last_hour, get_btc_prices_since, get_trades_since
+from polymatt.data.storage import save_paper_trade, get_btc_prices_since, get_trades_since
 from polymatt.notifications import send as notify
 
 logger = logging.getLogger(__name__)
@@ -60,14 +60,14 @@ class PaperTrader:
         # This must match what the backtest engine uses so results are comparable.
         window_seconds = self.params.momentum_window_min * 60
         window_prices = get_btc_prices_since(
-            datetime.utcnow() - timedelta(seconds=window_seconds)
+            datetime.now(timezone.utc) - timedelta(seconds=window_seconds)
         )
         if len(window_prices) < 2:
             return  # not enough BTC data yet — skip this evaluation
         btc_change = ((window_prices[-1][1] - window_prices[0][1]) / window_prices[0][1]) * 100
 
         recent = get_trades_since(self.condition_id,
-                                   datetime.utcnow() - timedelta(minutes=10))
+                                   datetime.now(timezone.utc) - timedelta(minutes=10))
 
         signal = evaluate_signal(self.condition_id, recent, ob,
                                   btc_change_pct=btc_change, params=self.params)
@@ -76,7 +76,7 @@ class PaperTrader:
 
         open_pos = len(self.open_trades)
         spread = ob.spread_pct() or 0
-        liq = sum(b.size for b in ob.bids[:3]) * (ob.best_bid() or 0)
+        liq = sum(b.size * b.price for b in ob.bids[:3])
 
         allowed, reason = self.risk.can_trade(
             size_usd=TRADE_SIZE_USD,
@@ -98,7 +98,7 @@ class PaperTrader:
             direction=signal.direction,
             entry_price=entry,
             size_usd=TRADE_SIZE_USD,
-            entry_time=datetime.utcnow(),
+            entry_time=datetime.now(timezone.utc),
             reason=signal.reason,
         )
         self.open_trades.append(trade)
@@ -109,7 +109,7 @@ class PaperTrader:
         gross = (exit_price - entry) * TRADE_SIZE_USD
         net = gross - (TRADE_SIZE_USD * TAKER_FEE) - (TRADE_SIZE_USD * SLIPPAGE)
         trade.exit_price = exit_price
-        trade.exit_time = datetime.utcnow()
+        trade.exit_time = datetime.now(timezone.utc)
         trade.pnl = net
         self.portfolio.record_closed_trade(net)
         self.open_trades.remove(trade)
@@ -123,7 +123,7 @@ class PaperTrader:
             pnl = (price - trade.entry_price) * trade.size_usd
             pnl -= trade.size_usd * (TAKER_FEE + SLIPPAGE)
             trade.exit_price = price
-            trade.exit_time = datetime.utcnow()
+            trade.exit_time = datetime.now(timezone.utc)
             trade.pnl = pnl
             self.portfolio.record_closed_trade(pnl)
             save_paper_trade(trade)
