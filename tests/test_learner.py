@@ -40,8 +40,8 @@ def test_rollback_on_win_rate_drop(tmp_path):
 
     # Learner should have rolled back
     current = learner.get_params()
-    # Win rate dropped so params should revert — we just check it didn't get worse
-    assert learner.rollback_count >= 1 or current is not None
+    # Win rate dropped so params should revert
+    assert learner.rollback_count >= 1
 
 
 def test_state_file_written_after_10_sessions(tmp_path):

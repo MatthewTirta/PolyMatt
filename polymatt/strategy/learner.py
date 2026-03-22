@@ -67,6 +67,7 @@ class Learner:
         self.sessions.append({
             "win_rate": win_rate,
             "params": asdict(params_used),
+            "trades": trades,  # stored for future per-trade analysis
         })
 
         if len(self.sessions) % 10 == 0:
@@ -92,6 +93,9 @@ class Learner:
                         prev_avg_wr * 100, recent_avg_wr * 100)
             self.rollback_count += 1
             self._current_params = self._prev_params
+            # Remove the bad param set so _load_state restores the good params on restart
+            if self.param_versions:
+                self.param_versions.pop()
             return
 
         # Calculate new params: weighted average of profitable sessions
