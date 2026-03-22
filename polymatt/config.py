@@ -13,6 +13,7 @@ load_dotenv()  # reads .env file in the current directory
 
 def _optional(key: str, default: str = "") -> str:
     """Get an env var. Returns default if not set."""
+    # The underscore prefix means: only use this helper inside config.py
     return os.getenv(key, default)
 
 
