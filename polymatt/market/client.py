@@ -26,8 +26,11 @@ def _with_retry(func, *args, **kwargs):
             return func(*args, **kwargs)
         except Exception as e:
             last_error = e
-            logger.warning("Attempt %d failed: %s. Retrying in %ds...", attempt, e, delay)
-            time.sleep(delay)
+            if attempt < len(RETRY_DELAYS):
+                logger.warning("Attempt %d failed: %s. Retrying in %ds...", attempt, e, delay)
+                time.sleep(delay)
+            else:
+                logger.warning("Attempt %d failed: %s. Giving up.", attempt, e)
     raise last_error
 
 
