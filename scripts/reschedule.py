@@ -20,11 +20,15 @@ import requests
 from polymatt.config import GITHUB_TOKEN, GITHUB_REPO
 
 BASE_URL = "https://api.github.com"
-HEADERS = {
-    "Authorization": f"Bearer {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-}
+
+
+def _headers() -> dict:
+    """Build request headers. Called at request time so token is read after .env is loaded."""
+    return {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
 
 DATE_FORMAT = "%Y-%m-%d"
 DATE_PATTERN = re.compile(r"Due:\s*(\d{4}-\d{2}-\d{2})")
@@ -32,7 +36,7 @@ BLOCKS_PATTERN = re.compile(r"blocks:\s*#(\d+)", re.IGNORECASE)
 
 
 def get_issue(number: int) -> dict:
-    resp = requests.get(f"{BASE_URL}/repos/{GITHUB_REPO}/issues/{number}", headers=HEADERS)
+    resp = requests.get(f"{BASE_URL}/repos/{GITHUB_REPO}/issues/{number}", headers=_headers())
     resp.raise_for_status()
     return resp.json()
 
@@ -40,7 +44,7 @@ def get_issue(number: int) -> dict:
 def update_issue_body(number: int, new_body: str):
     resp = requests.patch(
         f"{BASE_URL}/repos/{GITHUB_REPO}/issues/{number}",
-        headers=HEADERS,
+        headers=_headers(),
         json={"body": new_body},
     )
     resp.raise_for_status()
@@ -49,14 +53,21 @@ def update_issue_body(number: int, new_body: str):
 def post_comment(number: int, message: str):
     resp = requests.post(
         f"{BASE_URL}/repos/{GITHUB_REPO}/issues/{number}/comments",
-        headers=HEADERS,
+        headers=_headers(),
         json={"body": message},
     )
     resp.raise_for_status()
 
 
-def shift_issue(number: int, delta_days: int, changed_by: str):
+def shift_issue(number: int, delta_days: int, changed_by: str, visited: set | None = None):
     """Shift one issue's due date by delta_days and cascade to blocked issues."""
+    if visited is None:
+        visited = set()
+    if number in visited:
+        print(f"  Issue #{number}: cycle detected — skipping")
+        return
+    visited.add(number)
+
     issue = get_issue(number)
     body = issue["body"] or ""
     title = issue["title"]
@@ -69,7 +80,7 @@ def shift_issue(number: int, delta_days: int, changed_by: str):
 
     old_date = datetime.strptime(match.group(1), DATE_FORMAT)
     new_date = old_date + timedelta(days=delta_days)
-    new_body = DATE_PATTERN.sub(f"Due: {new_date.strftime(DATE_FORMAT)}", body)
+    new_body = DATE_PATTERN.sub(f"Due: {new_date.strftime(DATE_FORMAT)}", body, count=1)
 
     update_issue_body(number, new_body)
     comment = (
@@ -84,7 +95,7 @@ def shift_issue(number: int, delta_days: int, changed_by: str):
     # Cascade to blocked issues
     for m in BLOCKS_PATTERN.finditer(body):
         blocked_number = int(m.group(1))
-        shift_issue(blocked_number, delta_days, changed_by)
+        shift_issue(blocked_number, delta_days, changed_by, visited)
 
 
 def main():
@@ -108,6 +119,11 @@ def main():
     old_start = datetime.strptime(match.group(1), DATE_FORMAT)
     new_start = datetime.strptime(args.new_start, DATE_FORMAT)
     delta_days = (new_start - old_start).days
+
+    # Update the Start: date in the root issue body before cascading
+    start_pattern = re.compile(r"Start:\s*\d{4}-\d{2}-\d{2}")
+    updated_body = start_pattern.sub(f"Start: {args.new_start}", body, count=1)
+    update_issue_body(args.issue, updated_body)
 
     print(f"[PolyMatt] Rescheduling issue #{args.issue} by {delta_days:+d} days...")
     shift_issue(args.issue, delta_days, changed_by="reschedule.py")
