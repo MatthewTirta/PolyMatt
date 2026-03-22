@@ -59,9 +59,15 @@ def init_db():
                 pnl          REAL,
                 reason       TEXT
             );
+            CREATE TABLE IF NOT EXISTS btc_prices (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT    NOT NULL,
+                price_usd REAL    NOT NULL
+            );
             CREATE INDEX IF NOT EXISTS idx_trades_cond ON trades(condition_id);
             CREATE INDEX IF NOT EXISTS idx_trades_ts   ON trades(timestamp);
             CREATE INDEX IF NOT EXISTS idx_ob_cond     ON orderbooks(condition_id);
+            CREATE INDEX IF NOT EXISTS idx_btc_ts ON btc_prices(timestamp);
         """)
         conn.commit()
         logger.info("Database ready at %s", DB_PATH)
@@ -175,5 +181,31 @@ def get_trade_count_last_hour(condition_id: str) -> int:
             (condition_id, since.isoformat()),
         ).fetchone()[0]
         return count
+    finally:
+        conn.close()
+
+
+def save_btc_price(timestamp: datetime, price_usd: float):
+    """Save one BTC spot price sample."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO btc_prices (timestamp, price_usd) VALUES (?,?)",
+            (timestamp.isoformat(), price_usd),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_btc_prices_since(since: datetime) -> list:
+    """Return [(timestamp, price_usd)] tuples since `since`."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT timestamp, price_usd FROM btc_prices WHERE timestamp>=? ORDER BY timestamp ASC",
+            (since.isoformat(),),
+        ).fetchall()
+        return [(datetime.fromisoformat(r["timestamp"]), r["price_usd"]) for r in rows]
     finally:
         conn.close()
